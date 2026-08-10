@@ -113,7 +113,14 @@ def readyz(store: ChatStore = Depends(get_store)):
     Khác /healthz ở chỗ: endpoint này ĐƯỢC PHÉP kiểm tra dependency. Load
     balancer dùng nó để quyết định có đẩy request vào instance này không.
     """
-    raise NotImplementedError("TODO (CP4): cài đặt /readyz")
+    if shutdown_guard.draining:
+        return JSONResponse(status_code=503, content={"status": "draining"})
+    if not store.ping():
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not ready", "redis": False},
+        )
+    return {"status": "ready", "redis": True}
 
 
 # ─────────────────────────────────────────────────────────────
@@ -160,6 +167,9 @@ def chat(
     ``client_id`` do ``verify_bearer_token`` trả về, nên request không có
     token hợp lệ sẽ dừng ở 401 trước khi chạm vào bất cứ dòng nào ở đây.
     """
+    if shutdown_guard.draining:
+        return JSONResponse(status_code=503, content={"status": "draining"})
+
     bucket.consume(client_id)
     guard.check(client_id)
 

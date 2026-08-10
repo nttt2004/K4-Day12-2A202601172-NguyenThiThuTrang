@@ -62,7 +62,19 @@ jobs:
       - name: Trigger Render deploy
         env:
           RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
-        run: curl --fail --silent --show-error --request POST "$RENDER_DEPLOY_HOOK"
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK is empty. Add the Render Deploy Hook URL as a GitHub Actions repository secret."
+            exit 1
+          fi
+          case "$RENDER_DEPLOY_HOOK" in
+            https://*) ;;
+            *)
+              echo "::error::RENDER_DEPLOY_HOOK must be an https:// Render Deploy Hook URL."
+              exit 1
+              ;;
+          esac
+          curl --fail --silent --show-error --retry 3 --request POST "$RENDER_DEPLOY_HOOK"
 
       - name: Smoke test
         env:
